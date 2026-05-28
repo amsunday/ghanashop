@@ -30,7 +30,10 @@ interface CartItem {
 }
 
 export default function PublicStorefront() {
-  const userId = '00000000-0000-0000-0000-000000000000'; // Default tenant
+  // Default public tenant — this is the shop owner's user ID.
+  // In a multi-tenant setup, this could come from a URL slug or subdomain.
+  // For now, it loads the first shop owner's storefront.
+  const [userId, setUserId] = useState('00000000-0000-0000-0000-000000000000');
 
   // Shop details
   const [shopDetails, setShopDetails] = useState<any>({
@@ -68,44 +71,45 @@ export default function PublicStorefront() {
     async function loadStorefrontData() {
       try {
         setLoading(true);
-        // 1. Fetch Shop details
+
+        // 1. Find the active shop (first available shop in the database)
         const { data: shopData } = await supabase
           .from('shops')
           .select('*')
-          .eq('id', userId)
+          .limit(1)
           .single();
 
         if (shopData) {
           setShopDetails(shopData);
+          setUserId(shopData.id);
+
+          // 2. Fetch categories for this shop
+          const { data: catData } = await supabase
+            .from('categories')
+            .select('*')
+            .eq('shop_id', shopData.id)
+            .order('display_order', { ascending: true });
+
+          setCategories(catData || []);
+
+          // 3. Fetch products for this shop
+          const { data: prodData } = await supabase
+            .from('products')
+            .select('*')
+            .eq('shop_id', shopData.id);
+
+          setProducts(prodData || []);
+
+          // 4. Fetch feedbacks for this shop
+          const { data: feedbackData } = await supabase
+            .from('feedbacks')
+            .select('*')
+            .eq('shop_id', shopData.id)
+            .order('created_at', { ascending: false })
+            .limit(3);
+
+          setFeedbacks(feedbackData || []);
         }
-
-        // 2. Fetch categories
-        const { data: catData } = await supabase
-          .from('categories')
-          .select('*')
-          .eq('shop_id', userId)
-          .order('display_order', { ascending: true });
-
-        setCategories(catData || []);
-
-        // 3. Fetch products
-        const { data: prodData } = await supabase
-          .from('products')
-          .select('*')
-          .eq('shop_id', userId);
-
-        setProducts(prodData || []);
-
-        // 4. Fetch feedbacks
-        const { data: feedbackData } = await supabase
-          .from('feedbacks')
-          .select('*')
-          .eq('shop_id', userId)
-          .order('created_at', { ascending: false })
-          .limit(3);
-
-        setFeedbacks(feedbackData || []);
-
       } catch (err) {
         console.error('Error fetching storefront data:', err);
       } finally {
@@ -114,7 +118,7 @@ export default function PublicStorefront() {
     }
 
     loadStorefrontData();
-  }, [userId]);
+  }, []);
 
   // Cart operations
   const addToCart = (product: Product) => {

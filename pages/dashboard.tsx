@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../lib/AuthContext';
 import MomoInvoiceTab from '../components/MomoInvoiceTab';
 import CategoryInventoryHub from '../components/CategoryInventoryHub';
 import LiveOrderTracker from '../components/LiveOrderTracker';
 import FeedbackStream from '../components/FeedbackStream';
 
 export default function Dashboard() {
-  // Assume a fixed authenticated user ID for demonstration/mockups.
-  // In real implementations, retrieve this dynamically from Supabase Auth: supabase.auth.getUser()
-  const userId = '00000000-0000-0000-0000-000000000000'; 
+  const router = useRouter();
+  const { user, loading: authLoading, signOut } = useAuth();
+  const userId = user?.id || '';
 
   // Store active tab
   const [activeTab, setActiveTab] = useState<'board' | 'inventory' | 'momo' | 'feedback'>('board');
@@ -17,6 +19,13 @@ export default function Dashboard() {
   const [orders, setOrders] = useState<any[]>([]);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace('/login');
+    }
+  }, [authLoading, user, router]);
 
   // Initial fetch profiles
   useEffect(() => {
@@ -156,6 +165,8 @@ export default function Dashboard() {
             </div>
           </div>
 
+          <div className="flex items-center gap-3">
+
           {/* Navigation layout tab links */}
           <nav className="flex gap-1.5 bg-slate-950 border border-slate-800 p-1 rounded-xl">
             <button
@@ -191,16 +202,24 @@ export default function Dashboard() {
               MoMo Setup
             </button>
           </nav>
+
+            <button
+              onClick={async () => { await signOut(); router.push('/login'); }}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider text-red-400 hover:text-red-300 hover:bg-red-950/30 border border-transparent hover:border-red-900/50 transition-all"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Main viewport content */}
       <main className="max-w-6xl mx-auto px-4 md:px-8 py-8">
-        {loading ? (
+        {(authLoading || loading) ? (
           <div className="flex justify-center items-center h-96">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
           </div>
-        ) : (
+        ) : !user ? null : (
           <div className="transition-all duration-300 transform">
             {activeTab === 'board' && (
               <LiveOrderTracker
