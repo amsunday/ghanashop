@@ -63,12 +63,6 @@ export default function PublicReviewPage() {
       <Head>
         <title>Submit Feedback | Local Storefront</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-        <style>{`
-          body {
-            font-family: 'Outfit', sans-serif;
-          }
-        `}</style>
       </Head>
 
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur-md">
@@ -83,10 +77,10 @@ export default function PublicReviewPage() {
             </p>
             <div className="pt-4">
               <button
-                onClick={() => window.close()}
+                onClick={() => router.push('/')}
                 className="w-full py-3 px-6 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-sm transition-all focus:outline-none"
               >
-                Close Page
+                Return to Store
               </button>
             </div>
           </div>

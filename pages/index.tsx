@@ -1,33 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { supabase } from '../lib/supabase';
-import { sanitizePhoneNumber } from '../lib/sanitize';
 import { generateMomoInvoiceMessage, createWhatsAppDeepLink } from '../lib/templates';
-
-// Type definitions
-interface Product {
-  id: string;
-  name: string;
-  description: string | null;
-  price: number;
-  image_url: string | null;
-  stock_quantity: number;
-  is_available: boolean;
-  category_id: string;
-}
-
-interface Category {
-  id: string;
-  name: string;
-  slug: string;
-  display_order: number;
-}
-
-interface CartItem {
-  product: Product;
-  quantity: number;
-}
+import type { Product, Category, CartItem, ShopDetails, Feedback } from '../lib/types';
+import { DEFAULT_SHOP_DETAILS } from '../lib/types';
 
 export default function PublicStorefront() {
   // Default public tenant — this is the shop owner's user ID.
@@ -36,20 +13,12 @@ export default function PublicStorefront() {
   const [userId, setUserId] = useState('00000000-0000-0000-0000-000000000000');
 
   // Shop details
-  const [shopDetails, setShopDetails] = useState<any>({
-    shop_name: 'Ghana Market Store',
-    currency_symbol: 'GH₵',
-    currency_code: 'GHS',
-    momo_network: 'MTN',
-    momo_name: 'Store Checkout Account',
-    momo_number: '0240000000',
-    contact_phone: '0240000000'
-  });
+  const [shopDetails, setShopDetails] = useState<ShopDetails>(DEFAULT_SHOP_DETAILS);
 
   // DB States
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
 
   // UI States
@@ -120,6 +89,21 @@ export default function PublicStorefront() {
     loadStorefrontData();
   }, []);
 
+  // Hydrate cart from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('ghana-storefront-cart');
+      if (saved) {
+        setCart(JSON.parse(saved));
+      }
+    } catch {}
+  }, []);
+
+  // Persist cart to localStorage on change
+  useEffect(() => {
+    localStorage.setItem('ghana-storefront-cart', JSON.stringify(cart));
+  }, [cart]);
+
   // Cart operations
   const addToCart = (product: Product) => {
     setCart(prevCart => {
@@ -149,13 +133,16 @@ export default function PublicStorefront() {
     });
   };
 
-  const getCartCount = () => {
-    return cart.reduce((total, item) => total + item.quantity, 0);
-  };
+  // Memoized cart computations to avoid recalculating on every render
+  const cartCount = useMemo(
+    () => cart.reduce((total, item) => total + item.quantity, 0),
+    [cart]
+  );
 
-  const getCartTotal = () => {
-    return cart.reduce((total, item) => total + item.product.price * item.quantity, 0);
-  };
+  const cartTotal = useMemo(
+    () => cart.reduce((total, item) => total + item.product.price * item.quantity, 0),
+    [cart]
+  );
 
   // Submit checkout
   const handleCheckout = async (e: React.FormEvent) => {
@@ -173,7 +160,7 @@ export default function PublicStorefront() {
       setCheckoutLoading(true);
       setErrorMsg('');
 
-      const total = getCartTotal();
+      const total = cartTotal;
 
       // 1. Insert order
       const { data: orderData, error: orderErr } = await supabase
@@ -269,13 +256,6 @@ export default function PublicStorefront() {
       <Head>
         <title>{shopDetails.shop_name} | Local Storefront</title>
         <meta name="description" content="Shop directly from our local catalog and pay securely with Mobile Money." />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-        <style>{`
-          body {
-            font-family: 'Outfit', sans-serif;
-          }
-        `}</style>
       </Head>
 
       {/* Stunning glassmorphic top header */}
@@ -300,9 +280,9 @@ export default function PublicStorefront() {
             >
               <span className="text-base">🛒</span>
               <span className="text-xs font-semibold hidden md:inline">Cart</span>
-              {getCartCount() > 0 && (
+              {cartCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-extrabold text-[10px] rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20 animate-pulse">
-                  {getCartCount()}
+                  {cartCount}
                 </span>
               )}
             </button>
@@ -537,8 +517,8 @@ export default function PublicStorefront() {
 
       {/* Floating sliding cart sidebar/drawer container */}
       {isCartOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex justify-end animate-fade-in">
-          <div className="w-full max-w-md bg-slate-900 border-l border-slate-850 h-full flex flex-col justify-between shadow-2xl relative">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex justify-end animate-fade-in" onClick={() => setIsCartOpen(false)}>
+          <div className="w-full max-w-md bg-slate-900 border-l border-slate-850 h-full flex flex-col justify-between shadow-2xl relative" onClick={e => e.stopPropagation()}>
             
             {/* Drawer Header */}
             <div className="p-5 border-b border-slate-850 flex justify-between items-center">
@@ -656,7 +636,7 @@ export default function PublicStorefront() {
                     <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-2 mt-4">
                       <div className="flex justify-between text-xs text-slate-400 font-medium">
                         <span>Items Subtotal:</span>
-                        <span>{shopDetails.currency_symbol} {getCartTotal().toFixed(2)}</span>
+                        <span>{shopDetails.currency_symbol} {cartTotal.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between text-xs text-slate-400 font-medium">
                         <span>Delivery Fee:</span>
@@ -666,7 +646,7 @@ export default function PublicStorefront() {
                       </div>
                       <div className="border-t border-slate-850 pt-2 flex justify-between text-sm font-extrabold text-slate-100">
                         <span>Grand Total:</span>
-                        <span>{shopDetails.currency_symbol} {getCartTotal().toFixed(2)}</span>
+                        <span>{shopDetails.currency_symbol} {cartTotal.toFixed(2)}</span>
                       </div>
                     </div>
 

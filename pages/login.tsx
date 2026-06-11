@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useAuth } from '../lib/AuthContext';
@@ -15,8 +15,13 @@ export default function LoginPage() {
   const [message, setMessage] = useState({ text: '', type: '' });
 
   // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, user, router]);
+
   if (!authLoading && user) {
-    router.replace('/dashboard');
     return null;
   }
 
@@ -63,8 +68,6 @@ export default function LoginPage() {
       <Head>
         <title>Sign In | Ghana WhatsApp Storefront</title>
         <meta name="description" content="Sign in to manage your WhatsApp storefront dashboard." />
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-        <style>{`body { font-family: 'Outfit', sans-serif; }`}</style>
       </Head>
 
       <div className="w-full max-w-md space-y-8">
@@ -88,22 +91,20 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => { setMode('signin'); setMessage({ text: '', type: '' }); }}
-              className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
-                mode === 'signin'
-                  ? 'bg-slate-900 border border-slate-700 text-emerald-400 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-300'
-              }`}
+              className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${mode === 'signin'
+                ? 'bg-slate-900 border border-slate-700 text-emerald-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-300'
+                }`}
             >
               Sign In
             </button>
             <button
               type="button"
               onClick={() => { setMode('signup'); setMessage({ text: '', type: '' }); }}
-              className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
-                mode === 'signup'
-                  ? 'bg-slate-900 border border-slate-700 text-emerald-400 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-300'
-              }`}
+              className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${mode === 'signup'
+                ? 'bg-slate-900 border border-slate-700 text-emerald-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-300'
+                }`}
             >
               Sign Up
             </button>
@@ -111,11 +112,10 @@ export default function LoginPage() {
 
           {/* Feedback Message */}
           {message.text && (
-            <div className={`p-4 rounded-xl text-sm font-medium transition-all ${
-              message.type === 'success'
-                ? 'bg-emerald-950/50 border border-emerald-900/50 text-emerald-300'
-                : 'bg-red-950/50 border border-red-900/50 text-red-300'
-            }`}>
+            <div className={`p-4 rounded-xl text-sm font-medium transition-all ${message.type === 'success'
+              ? 'bg-emerald-950/50 border border-emerald-900/50 text-emerald-300'
+              : 'bg-red-950/50 border border-red-900/50 text-red-300'
+              }`}>
               {message.text}
             </div>
           )}
@@ -123,10 +123,11 @@ export default function LoginPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="flex flex-col">
-              <label className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
+              <label htmlFor="login-email" className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
                 Email Address
               </label>
               <input
+                id="login-email"
                 type="email"
                 required
                 value={email}
@@ -137,10 +138,11 @@ export default function LoginPage() {
             </div>
 
             <div className="flex flex-col">
-              <label className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
+              <label htmlFor="login-password" className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
                 Password
               </label>
               <input
+                id="login-password"
                 type="password"
                 required
                 value={password}
@@ -152,10 +154,11 @@ export default function LoginPage() {
 
             {mode === 'signup' && (
               <div className="flex flex-col">
-                <label className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
+                <label htmlFor="login-confirm-password" className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
                   Confirm Password
                 </label>
                 <input
+                  id="login-confirm-password"
                   type="password"
                   required
                   value={confirmPassword}
@@ -181,7 +184,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="text-center text-xs text-slate-600">
-          © 2026 Ghana WhatsApp Storefront SaaS. Powered by Supabase.
+          © 2026 Ghana WhatsAppstor.
         </p>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
@@ -7,6 +7,8 @@ import MomoInvoiceTab from '../components/MomoInvoiceTab';
 import CategoryInventoryHub from '../components/CategoryInventoryHub';
 import LiveOrderTracker from '../components/LiveOrderTracker';
 import FeedbackStream from '../components/FeedbackStream';
+import type { ShopDetails, Order, Feedback } from '../lib/types';
+import { DEFAULT_SHOP_DETAILS } from '../lib/types';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -15,9 +17,9 @@ export default function Dashboard() {
 
   // Store active tab
   const [activeTab, setActiveTab] = useState<'board' | 'inventory' | 'momo' | 'feedback'>('board');
-  const [shopDetails, setShopDetails] = useState<any>(null);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  const [shopDetails, setShopDetails] = useState<ShopDetails | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Redirect to login if not authenticated
@@ -41,14 +43,7 @@ export default function Dashboard() {
           setShopDetails(data);
         } else {
           // Setup a mock fallback shop details if not created yet
-          setShopDetails({
-            shop_name: 'Ghana Market Store',
-            currency_symbol: 'GH₵',
-            momo_network: 'MTN',
-            momo_name: 'Store Checkout Account',
-            momo_number: '0240000000',
-            contact_phone: '0240000000'
-          });
+          setShopDetails(DEFAULT_SHOP_DETAILS);
         }
       } catch (e) {
         console.error('Error loading shop profile:', e);
@@ -61,7 +56,7 @@ export default function Dashboard() {
   }, [userId]);
 
   // Fetch orders and feedbacks
-  const fetchOrdersAndReviews = async () => {
+  const fetchOrdersAndReviews = useCallback(async () => {
     try {
       // Fetch orders complete with inner joined items and products
       const { data: orderData, error: orderErr } = await supabase
@@ -95,13 +90,13 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     if (userId) {
       fetchOrdersAndReviews();
     }
-  }, [userId]);
+  }, [userId, fetchOrdersAndReviews]);
 
   // SUPABASE REALTIME STREAM SYNC
   // Listen for real-time checkout inserts and feedback triggers dynamically
@@ -129,7 +124,7 @@ export default function Dashboard() {
     return () => {
       supabase.removeChannel(ordersChannel);
     };
-  }, [userId]);
+  }, [userId, fetchOrdersAndReviews]);
 
   const handleProfileUpdated = (updatedProfile: any) => {
     setShopDetails(updatedProfile);
@@ -140,12 +135,6 @@ export default function Dashboard() {
       <Head>
         <title>{shopDetails?.shop_name || 'Store'} | WhatsApp Merchant Dashboard</title>
         <meta name="description" content="Production-ready multi-tenant store generator with MoMo payouts." />
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-        <style>{`
-          body {
-            font-family: 'Outfit', sans-serif;
-          }
-        `}</style>
       </Head>
 
       {/* Header bar */}
@@ -219,7 +208,7 @@ export default function Dashboard() {
           <div className="flex justify-center items-center h-96">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
           </div>
-        ) : !user ? null : (
+        ) : !user || !shopDetails ? null : (
           <div className="transition-all duration-300 transform">
             {activeTab === 'board' && (
               <LiveOrderTracker
